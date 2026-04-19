@@ -1,6 +1,7 @@
 import random
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
+from telegram.error import BadRequest
 import database
 
 def get_worker_keyboard():
@@ -41,7 +42,11 @@ async def test_worker_death(update: Update, health: int, user_id: int):
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer() # Ack the click
+    try:
+        await query.answer() # Ack the click
+    except BadRequest as e:
+        if "Query is too old" not in str(e):
+            raise e
     
     user_id = update.effective_user.id
     action = query.data
