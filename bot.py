@@ -3,7 +3,6 @@ from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 
-import database
 from games import worker_game
 
 load_dotenv()
@@ -29,7 +28,6 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Jeu inconnu. Tape /start pour voir la liste des jeux.")
 
 def main():
-    database.init_db()
     
     token = os.getenv("TELEGRAM_TOKEN")
     if not token or token == "ton_token_ici":

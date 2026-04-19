@@ -2,7 +2,18 @@ import random
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from telegram.error import BadRequest
-import database
+
+# In-memory storage
+MEMORY_DB = {}
+
+def get_user(user_id):
+    if user_id not in MEMORY_DB:
+        MEMORY_DB[user_id] = {"health": 100, "food": 0}
+    user = MEMORY_DB[user_id]
+    return user["health"], user["food"]
+
+def update_user(user_id, health, food):
+    MEMORY_DB[user_id] = {"health": health, "food": food}
 
 def get_worker_keyboard():
     keyboard = [
@@ -14,7 +25,7 @@ def get_worker_keyboard():
 
 async def start_worker_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    health, food = database.get_user(user_id)
+    health, food = get_user(user_id)
     
     text = (
         "👨‍🔧 **Jeu de l'Ouvrier en Moto**\n\n"
@@ -31,7 +42,7 @@ async def start_worker_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def test_worker_death(update: Update, health: int, user_id: int):
     if health <= 0:
         # Reset user
-        database.update_user(user_id, 100, 0)
+        update_user(user_id, 100, 0)
         await update.callback_query.message.reply_text(
             "☠️ **Oh non ! Ton ouvrier est mort d'épuisement...**\n\n"
             "Tout est réinitialisé. Un nouvel ouvrier est embauché.",
@@ -51,7 +62,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     action = query.data
     
-    health, food = database.get_user(user_id)
+    health, food = get_user(user_id)
     
     if action == "worker_status":
         await query.edit_message_text(
@@ -79,10 +90,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         if success:
             new_food = food + 1
-            database.update_user(user_id, new_health, new_food)
+            update_user(user_id, new_health, new_food)
             msg = f"🎉 **Succès !** L'ouvrier est revenu en moto avec de la nourriture !\n\n❤️ Santé : {new_health}/100\n🍔 Nourriture : {new_food}"
         else:
-            database.update_user(user_id, new_health, food)
+            update_user(user_id, new_health, food)
             msg = f"❌ **Échec !** Le frigo était vide ou la moto est tombée en panne...\n\n❤️ Santé : {new_health}/100\n🍔 Nourriture : {food}"
             
         await query.edit_message_text(msg, reply_markup=get_worker_keyboard(), parse_mode="Markdown")
@@ -91,7 +102,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if food >= 1:
             new_food = food - 1
             new_health = min(100, health + 30)
-            database.update_user(user_id, new_health, new_food)
+            update_user(user_id, new_health, new_food)
             msg = f"💪 **Miam !** L'ouvrier a mangé et repris des forces !\n\n❤️ Santé : {new_health}/100\n🍔 Nourriture : {new_food}"
             await query.edit_message_text(msg, reply_markup=get_worker_keyboard(), parse_mode="Markdown")
         else:
